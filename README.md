@@ -112,7 +112,7 @@ against m on each dataset's target view (`centroid_ndcg10_by_dataset.png`).
 | `seed_inv_mmr@λ` | the same pool, scored by inverse context MMR | [Inverse context MMR](#inverse-context-mmr-seed_inv_mmrλ) |
 | `bm25_DaaQ` | every context passage's text a BM25 query, fused by RRF | [BM25 + RRF](#bm25--rrf-bm25_daaq) |
 | `bm25_centroid` | the centroid in BM25's term space, one weighted BM25 query | [BM25 centroid](#bm25-centroid-bm25_centroid) |
-| `zero_shot`, `fixed_llm`, `sliding_window`, `doc2query` (and `<method>@<retriever>`) | text queries written from the context | [Query formulation baselines](#query-formulation-baselines) |
+| `zero_shot`, `QF-Fixed`, `sliding_window`, `doc2query` (and `<method>@<retriever>`) | text queries written from the context | [Query formulation baselines](#query-formulation-baselines) |
 | `true_query`, `true_query@<retriever>` | the Oracle: the real query, with E5 or a text retriever | |
 
 Context documents are removed from every ranking (the user already has them).
@@ -188,7 +188,7 @@ change, while the tables, configs and command-line options keep the run names:
 
 ### Query formulation baselines
 
-The `zero_shot`, `fixed_llm`, `sliding_window` and `doc2query` methods of
+The `zero_shot`, `QF-Fixed`, `sliding_window` and `doc2query` methods of
 [proactive-icl-query-pair](https://github.com/Shug1876/proactive-icl-query-pair)
 (`src/models/models.py`) live in `pec.query_formulation`. Their code is copied unchanged:
 the prompts, the LLM request, the `<query></query>` extraction, the static query pairs
@@ -197,7 +197,7 @@ and the window and doc2query settings. Each turns a context into text queries:
 | Run | Queries from the context passages' text | Settings (`baseline.query_formulation`) |
 |---|---|---|
 | `zero_shot` | one query written by an LLM | `llm.model` `llama-3-8b-instruct`, OpenAI-compatible `llm.base_url`, key in `$IDA_LLM_API_KEY` |
-| `fixed_llm` | one query written by an LLM that is also shown good and bad query pairs of one fixed MS MARCO training query | `static_icl.p` 5 pairs of each, `static_icl.static_qid` 121352, from the RBO query-pair file `static_icl.rbo_path` |
+| `QF-Fixed` | one query written by an LLM that is also shown good and bad query pairs of one fixed MS MARCO training query | `static_icl.p` 5 pairs of each, `static_icl.static_qid` 121352, from the RBO query-pair file `static_icl.rbo_path` |
 | `sliding_window` | the 3 windows of 25 whitespace tokens with the highest mean IDF | as in proactive-icl-query-pair |
 | `doc2query` | one doc2query-T5 query per context passage (`pyterrier_doc2query`, `num_samples=1`) | as in proactive-icl-query-pair |
 
