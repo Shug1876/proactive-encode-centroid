@@ -1,0 +1,37 @@
+# Experiment 2: the context centroid on contexts that mix judged non-relevant documents
+# with partially relevant ones (a "realistic" context: not everything a user looked at helps).
+include: [paths.yaml, oracle_values.yaml, plot_results.yaml]
+
+exp02:
+  datasets: [dl19, dl20, trec_covid]   # each into outputs/exp02_<dataset>/
+  output_subdir: "exp02_{dataset}"
+  random_seed: 42             # same as exp01: the α = 0 context is Experiment 1's m = 5 context
+  encode_queries: true        # E5-encode the query text for the true-query reference (never a baseline input)
+  context_size: 5             # m, the documents in every context
+  # α, the share of non-relevant documents in the context (α · m of them, the rest
+  # partially relevant): 0 = no non-relevant documents ... 0.8 = 4 of 5 (command line:
+  # --alphas 0 0.2 0.4). α · m must be a whole number. Non-relevant documents are the
+  # query's own judged grade-0 documents only, never documents sampled from the
+  # collection; partially relevant = the dataset's context grade. Queries without enough
+  # of both for every α are left out of every α.
+  alphas: [0.0, 0.2, 0.4, 0.6, 0.8]
+  # Runs: the E5 context centroid and the BM25 methods of Experiment 1 (each context
+  # passage's text as a BM25 query fused by RRF; the centroid in BM25 term space), each
+  # compared with its own retriever's Oracle: the E5 true query (true_query) and the true
+  # query text with BM25 (true_query@bm25). The BM25 runs use text_retrievers.<index>.bm25.
+  runs: [centroid, bm25_DaaQ, bm25_centroid]
+  rrf_k: 60                   # bm25_DaaQ's RRF constant
+  bm25_centroid: {terms: 100, all_terms: false}
+  repeats: 5                  # random draws per α (nested across α within a draw)
+  num_results: 1000
+  recall_ks: [10]
+  reference: true_query       # scores are also reported as a share of this upper bound
+  reference_label: Oracle     # how the reference is named in the figures' legends and axes
+  # true: the figures use the pinned Oracle scores of configs/oracle_values.yaml wherever
+  # they are given (a flat Oracle line; shares divided by it); the tables keep the computed Oracle.
+  pin_oracle: true
+  plot_titles: false          # true: give the figures titles (command line: --titles)
+  # Results already stored under exp02_<dataset>/ are reused; rerun: true recomputes them
+  # (command line: --rerun).
+  rerun: false
+  overrides: {}               # per-dataset settings merged over the ones above

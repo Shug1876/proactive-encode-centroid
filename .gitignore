@@ -1,0 +1,41 @@
+# Byte-compiled files and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# Environments
+.env
+.envrc
+.venv/
+venv/
+env/
+ENV/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Experiment outputs (figures, CSVs, query formulation caches) and local data
+outputs/
+*.npz
+*.faiss
+*.npids

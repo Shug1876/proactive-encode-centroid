@@ -1,0 +1,13 @@
+pyterrier
+pyterrier-dr
+faiss-gpu
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+pyyaml
+tqdm
+openai
+# Install this repository itself (the pec package under src/), editable. Run pip from the repo root.
+-e .

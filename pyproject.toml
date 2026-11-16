@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pec"
+version = "0.1.0"
+description = "Proactive encode centroid: zero-training baselines that find perfectly relevant documents from a partially relevant context (Experiments 1 and 2)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # PyTerrier core + extensions. python-terrier pulls in ir_datasets and ir_measures;
+    # pyterrier-dr provides the E5 encoder and MMR and pulls in pyterrier-alpha, npids,
+    # sentence-transformers, transformers and torch.
+    "pyterrier",
+    "pyterrier-dr",
+    "faiss-cpu>=1.8",
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "pyyaml",
+    "tqdm",
+    # LLM query formulation baselines (zero-shot / static ICL) in Experiment 1. The
+    # doc2query baseline also needs pyterrier_doc2query, installed by requirements.sh.
+    "openai",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

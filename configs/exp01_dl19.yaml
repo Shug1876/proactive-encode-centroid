@@ -1,0 +1,100 @@
+# Experiment 1: zero-training baselines against the true query (Oracle) over the
+# context-size sweep, per dataset.
+include: [paths.yaml, oracle_values.yaml, plot_results.yaml]
+
+exp01:
+  datasets: [dl19, dl20, trec_covid]   # each into outputs/exp01_<dataset>/baseline/
+  output_subdir: "exp01_{dataset}"
+  random_seed: 42
+  encode_queries: true        # E5-encode the query text for the true-query Oracle (never a baseline input)
+  plot_titles: false          # true: give the figures titles (command line: --titles)
+
+  baseline:                   # zero-training baselines
+    num_results: 1000
+    recall_ks: [10]
+    # Context-size sweep: k grade-1 passages per query, `repeats` random draws per k
+    # (nested: within a draw the k=3 context is inside the k=5 one). Queries with fewer
+    # than k grade-1 passages are left out at that k. Runs are compared by their share of
+    # the true-query upper bound on the same queries; best k excludes "all".
+    # "all" (every grade-1 passage) is disabled for every approach for now: add it back
+    # to this list to run it (TREC-COVID keeps it off through its override below).
+    context_sizes: [1, 3, 5, 7, 10]
+    repeats: 5
+    reference: true_query
+    # Figures: the true query is called "Oracle", every run is compared with its own
+    # retriever's Oracle (E5 runs: true_query; BM25 runs: true_query@bm25), and with
+    # fixed_oracle every context size m is compared with the Oracle at m =
+    # oracle_context_size, so the Oracle is one flat line (false: each m against the
+    # Oracle at that m; command line: --no-fixed-oracle). The saved tables are unchanged.
+    fixed_oracle: true
+    oracle_context_size: 5
+    oracle_label: Oracle
+    # true: use the pinned Oracle scores of configs/oracle_values.yaml in the figures wherever
+    # they are given (they replace the computed Oracle); false: the computed Oracle.
+    pin_oracle: true
+    # Results already stored under baseline/ are reused: a run with results for a context
+    # size and repeat is not run again. rerun: true recomputes every run; a list of run
+    # names recomputes those (command line: --rerun [NAME ...]).
+    rerun: false
+    # false: skip the embedding baselines and BM25 + RRF below and run only the query
+    # formulation methods (and the true query, the reference); command line: --qf-only.
+    other_baselines: true
+    rrf_k: 60                 # constant in seed_rrf's 1 / (rrf_k + rank)
+    mmr:                      # seed_mmr@<lambda>: multi-query MMR, each context document a query
+      lambdas: [0.5, 0.7, 0.9]
+      pool: 2000              # candidates re-ranked by MMR (most relevant by max cosine to the context)
+    inv_mmr:                  # seed_inv_mmr@<lambda>: -lambda * S_R(d,q) + (1 - lambda) * mean cos(d, other context docs)
+      lambdas: [0.5, 0.7, 0.9]
+      pool: 2000              # candidates scored (most relevant by max cosine to the context)
+    bm25_rrf:                 # bm25_DaaQ: each context passage's text as a BM25 query, fused by RRF
+      enabled: true           # uses text_retrievers.<index>.bm25 in paths.yaml (PISA)
+      depth: 1000             # BM25 documents kept per context passage (context removed)
+      rrf_k: 60
+    # Ablation: bm25_DaaQ and bm25_centroid again without BM25's term weighting
+    # (BM25 with k1 = 0: a matching term scores its idf, whatever its frequency in the
+    # document or the document's length), as the separate runs bm25_DaaQ_nobm25 and
+    # bm25_centroid_nobm25 (command line: --bm25-ablation).
+    bm25_binary_ablation: false
+    bm25_centroid:            # bm25_centroid: the context centroid in BM25 term space, as one weighted BM25 query
+      enabled: true           # uses text_retrievers.<index>.bm25 in paths.yaml (PISA); nothing is indexed
+      terms: 100              # keep the 100 highest-weighted terms of the centroid
+      all_terms: true        # true: keep every term (a longer, slower query)
+    # Text query formulation baselines from proactive-icl-query-pair (src/models/models.py),
+    # with that repository's prompts and settings, run on the same context draws as the
+    # baselines above. zero_shot / static_icl: an LLM writes one query from the context
+    # (static_icl is also shown fixed good / bad query pairs); sliding_window: the top 3
+    # 25-token windows of the context by mean IDF; doc2query: one doc2query-T5 query per
+    # context passage. Each query is searched with every retriever below, context removed;
+    # several queries are fused by RRF (one input per query). Outputs: baseline/query_formulation/<method>.jsonl
+    # (reruns reuse them, so no new LLM calls). methods: [] turns them off.
+    query_formulation:
+      methods: [zero_shot, static_icl, sliding_window, doc2query]
+      # which methods run: llm = zero_shot, static_icl; text = sliding_window, doc2query
+      # (command line: --qf-groups llm). Groups run separately add up in the same tables.
+      groups: [llm, text]
+      # context sizes these methods (and true_query@<retriever>) run at; null = every size above
+      context_sizes: [1, 3, 5, 7, 10]
+      # e5: E5-encoded and searched in the FAISS index, like the true query (run <method>).
+      # The others are proactive-icl-query-pair's retrievers (run <method>@<retriever>), with
+      # their indexes under text_retrievers in paths.yaml: bm25 (PISA), monot5 (BM25 top 50
+      # re-ranked by monoT5), colbert (TCT-ColBERT), splade (SPLADE over PISA).
+      retrievers: [e5, bm25, monot5, colbert, splade]
+      monot5_depth: 50        # BM25 documents monoT5 re-ranks (proactive-icl-query-pair: 50)
+      true_query: true        # also run the true query text through each text retriever (true_query@<retriever>)
+      text_fields: null       # null = the dataset's text_fields (TREC-COVID: title + abstract); [text] = abstract only, as proactive-icl-query-pair
+      rrf_k: 60               # RRF constant for sliding_window / doc2query (pyterrier-alpha rr_fusion default)
+      llm:                    # zero_shot, static_icl (OpenAI-compatible endpoint)
+        model: llama-3-8b-instruct
+        base_url: http://api.llm.apps.os.dcs.gla.ac.uk/v1   # outside UofG network: http://api.terrier.org/v1
+        api_key_env: IDA_LLM_API_KEY                        # environment variable holding the API key
+      static_icl:
+        p: 5                  # good and bad query pairs shown (proactive-icl-query-pair default)
+        static_qid: "121352"  # the MS MARCO training query whose pairs are always shown
+        rbo_path: /mnt/datasets/msMarco/DL-train-passages/msmarco.nnq.rbo.res
+
+  # Per-dataset settings merged over the ones above.
+  overrides:
+    trec_covid:
+      baseline:
+        # topics have hundreds of grade-1 documents, so "all" is never run on TREC-COVID
+        context_sizes: [1, 3, 5, 7, 10]

@@ -1,0 +1,26 @@
+# Which runs scripts/plot_results.py shows (python scripts/plot_results.py --runs-config ...).
+# Per experiment, the runs drawn in its figures, in this order (shell patterns allowed,
+# e.g. "seed_mmr@*"); every run's Oracle (E5: true_query, BM25: true_query@bm25) is drawn
+# with it. More than eight runs are split over main, main_2, ... figures. An experiment
+# left out (or an empty list) uses the built-in default. On the command line, --models,
+# --groups or --all-models take precedence over this file, and --exclude-models still
+# removes runs.
+#
+# Run names: centroid, seed_rrf, bm25_DaaQ, bm25_centroid, bm25_DaaQ_nobm25,
+# bm25_centroid_nobm25, seed_mmr@<λ>, seed_inv_mmr@<λ>, zero_shot, static_icl,
+# sliding_window, doc2query, <method>@<bm25|monot5|colbert|splade>.
+# python scripts/plot_results.py --list shows the stored ones.
+plot_results:
+  runs:
+    exp01: [centroid, bm25_DaaQ, static_icl, doc2query]
+    exp02: [centroid, bm25_DaaQ, bm25_centroid]
+
+# The same y-axis range in every result figure: Experiment 1's context-size sweeps,
+# Experiment 2's noise sweeps, the comparison figures and everything
+# plot_results.py draws. raw: score panels (nDCG@10, recall); pct: % of the Oracle
+# (recall can pass 100% of the Oracle, see the README). Values outside are clipped and
+# logged. The experiment configs include this file; remove a key (or set y_limits: null)
+# for automatic ranges. plot_results.py: --ylim-raw / --ylim-pct LO HI, --no-fixed-ylim.
+y_limits:
+  raw: [0, 1]
+  pct: [0, 140]
