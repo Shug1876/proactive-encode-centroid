@@ -16,14 +16,6 @@ This repository holds two experiments and the scripts that plot their stored res
 - **Plotting** (`scripts/plot_results.py`): every figure redrawn from the stored tables,
   with the spread over repeated context draws, plus paper-ready one-column PDFs.
 
-It was split out of
-[proactive-q-encoder](https://github.com/Shug1876/proactive-q-encoder), which also holds
-the trained graph model, its evaluation and Experiment 1's descriptive analyses (t-SNE,
-distances, reachability, context similarity, features). The package here is `pec`; the
-code, configs and stored-result formats of the baselines are unchanged, so results
-written by proactive-q-encoder's `exp01_<dataset>/baseline/` and `exp02_<dataset>/` folders
-are read (and reused) as they are.
-
 Relevance grades follow each collection's own scale. Which grade is the context and which
 is the target is set per dataset (`datasets.<name>.relevance` in `configs/paths.yaml`):
 
@@ -120,7 +112,7 @@ against m on each dataset's target view (`centroid_ndcg10_by_dataset.png`).
 | `seed_inv_mmr@λ` | the same pool, scored by inverse context MMR | [Inverse context MMR](#inverse-context-mmr-seed_inv_mmrλ) |
 | `bm25_DaaQ` | every context passage's text a BM25 query, fused by RRF | [BM25 + RRF](#bm25--rrf-bm25_daaq) |
 | `bm25_centroid` | the centroid in BM25's term space, one weighted BM25 query | [BM25 centroid](#bm25-centroid-bm25_centroid) |
-| `zero_shot`, `static_icl`, `sliding_window`, `doc2query` (and `<method>@<retriever>`) | text queries written from the context | [Query formulation baselines](#query-formulation-baselines) |
+| `zero_shot`, `fixed_llm`, `sliding_window`, `doc2query` (and `<method>@<retriever>`) | text queries written from the context | [Query formulation baselines](#query-formulation-baselines) |
 | `true_query`, `true_query@<retriever>` | the Oracle: the real query, with E5 or a text retriever | |
 
 Context documents are removed from every ranking (the user already has them).
@@ -194,49 +186,9 @@ change, while the tables, configs and command-line options keep the run names:
 
 `<run>@<retriever>` follows its run (`doc2query@bm25` is QF-D2Q@bm25).
 
-**No titles.** Experiment 1's figures (and `exp01_comparison`) have no titles unless `exp01.plot_titles: true` (command line `--titles`), as Experiment 2's. Where a panel
-title named something, it moves: the context-sweep y axes read e.g. "nDCG@10 (% of
-Oracle)", and the overview's method families head each panel's legend. Panel titles
-marked with `keep_title` stay (they are labels, not titles).
-
-**The same y range everywhere.** `y_limits` in `configs/plot_results.yaml` (included by the
-Experiment 1 and Experiment 2 configs) fixes the y axis of every result figure: score
-panels 0–1 (`raw`), % of the Oracle panels 0–140 (`pct`). That covers the context sweeps,
-the overview, the noise sweeps, the comparison figures and everything `plot_results.py` draws (`--ylim-raw` / `--ylim-pct LO
-HI` override it, `--no-fixed-ylim` turns it off). Values outside the range are clipped and
-logged; remove a key, or set `y_limits: null`, for automatic ranges.
-
-**Pinned Oracle values.** `configs/oracle_values.yaml` (included by the Experiment 1 and 2
-configs and read by `plot_results.py`) pins the Oracle scores the figures use: nDCG@10 at
-m = 5 for the E5 Oracle (`true_query`) and the BM25 Oracle (`true_query@bm25`) on DL19 and
-DL20 (`grade=3`, `grade>=2`) and TREC-COVID (`grade=2`), keyed metric -> dataset -> Oracle
-run -> view. Wherever a value is given, every figure divides by it (and, with the Oracle
-lines on, draws the Oracle line at it), instead of the Oracle computed from the stored results; metrics, datasets or views
-not listed keep the computed Oracle (fixed at m = 5 as above), and a pinned value that
-matches no stored result is logged. Toggles: `exp01.baseline.pin_oracle`,
-`exp02.pin_oracle` (both default true) and `plot_results.py --no-pinned-oracle` (or another
-file with `--oracle-values`). The saved tables of both experiments keep the computed Oracle.
-
-"all" stays in the tables if stored but is never plotted.
-
-**`seed_fusion` (max-cosine fusion) has been removed.** Its stored results are deleted
-from the `baseline/` tables the next time Experiment 1 runs, and it is never plotted
-(`pec.evaluate.RETIRED_RUNS`). The max-cosine mode of `SeedFusionRetriever` remains, as
-the candidate pool of the two MMR baselines.
-
-**Stored results are reused.** Every run's results accumulate in the `baseline/` tables
-(`pec.evaluate.cached_sweep`): a run that already has results for a context size and
-repeat is not run again, and runs made in separate invocations end up in the same
-tables and figures. The figures are built from everything stored, not just the runs of
-the latest invocation. Draws depend only on the qrels and `random_seed`, so stored results
-stay valid while `baseline/sweep_settings.json` (seed, result depth, metrics, views)
-matches; if the settings change, nothing stored is reused. To recompute:
-`baseline.rerun: true` (or `--rerun`) reruns everything, `--rerun seed_rrf zero_shot`
-only the runs named.
-
 ### Query formulation baselines
 
-The `zero_shot`, `static_icl`, `sliding_window` and `doc2query` methods of
+The `zero_shot`, `fixed_llm`, `sliding_window` and `doc2query` methods of
 [proactive-icl-query-pair](https://github.com/Shug1876/proactive-icl-query-pair)
 (`src/models/models.py`) live in `pec.query_formulation`. Their code is copied unchanged:
 the prompts, the LLM request, the `<query></query>` extraction, the static query pairs
@@ -245,7 +197,7 @@ and the window and doc2query settings. Each turns a context into text queries:
 | Run | Queries from the context passages' text | Settings (`baseline.query_formulation`) |
 |---|---|---|
 | `zero_shot` | one query written by an LLM | `llm.model` `llama-3-8b-instruct`, OpenAI-compatible `llm.base_url`, key in `$IDA_LLM_API_KEY` |
-| `static_icl` | one query written by an LLM that is also shown good and bad query pairs of one fixed MS MARCO training query | `static_icl.p` 1 pair of each, `static_icl.static_qid` 121352, from the RBO query-pair file `static_icl.rbo_path` |
+| `fixed_llm` | one query written by an LLM that is also shown good and bad query pairs of one fixed MS MARCO training query | `static_icl.p` 5 pairs of each, `static_icl.static_qid` 121352, from the RBO query-pair file `static_icl.rbo_path` |
 | `sliding_window` | the 3 windows of 25 whitespace tokens with the highest mean IDF | as in proactive-icl-query-pair |
 | `doc2query` | one doc2query-T5 query per context passage (`pyterrier_doc2query`, `num_samples=1`) | as in proactive-icl-query-pair |
 
@@ -258,8 +210,8 @@ and the window and doc2query settings. Each turns a context into text queries:
 - **Same index.** Each query is encoded with `e5_model` (`query: ` prefix) and searched
   in the dataset's FAISS index, context passages removed, like the true query (runs
   named after the method).
-- **proactive-icl-query-pair's retrievers.** The same queries also go through the
-  retrievers that repository evaluated them with (`pec.text_retrievers`, its
+- **Retriever Evaluation.** The same queries also go through the
+  same retrievers we evaluate all other approaches with (`pec.text_retrievers`, its
   `get_retr`), each run named `<method>@<retriever>`:
 
   | `retrievers` | Pipeline |
@@ -269,7 +221,7 @@ and the window and doc2query settings. Each turns a context into text queries:
   | `colbert` | TCT-ColBERT (`castorini/tct_colbert-v2-hnp-msmarco`) over a FlexIndex (MS MARCO) or NumpyIndex (TREC-COVID) |
   | `splade` | SPLADE (`naver/splade-cocondenser-ensembledistil`) over a quantized, unstemmed PISA index |
 
-  The indexes are that repository's, set under `text_retrievers` in
+  The indexes can be configured under `text_retrievers` in
   `configs/paths.yaml` (keyed like `indexes`, so DL19 and DL20 share the MS MARCO
   ones; TREC-COVID's BM25 is the `pyterrier/trec-covid.pisa` HuggingFace artifact, as
   there). Context passages are removed from every ranking, and each retriever searches
@@ -344,7 +296,7 @@ needs rerunning.
 
 ### BM25 centroid (`bm25_centroid`)
 
-The centroid idea in BM25's term space, as one weighted BM25 query against the same PISA
+The centroid approach in BM25's term space, as one weighted BM25 query against the same PISA
 index (nothing is indexed). For each context:
 
 1. Each passage's text is turned into the index's terms with PISA's own tokeniser, the
@@ -352,7 +304,7 @@ index (nothing is indexed). For each context:
 2. Each passage becomes a sparse vector of term counts divided by its length, so long
    passages do not dominate (the counterpart of E5's unit vectors).
 3. The vectors are averaged into the centroid, scaled so the largest weight is 1. With
-   `bm25_centroid.all_terms: true` (the config's current setting) it keeps every term (a
+   `bm25_centroid.all_terms: true` (the config's current setting used for final results) it keeps every term (a
    longer, slower query); with `false` only its `terms` (100) highest weights.
 4. The centroid is searched as `query_toks` with `PisaIndex.bm25(query_weighted=True)`:
    a document scores Σ_t w_t · BM25(t, d), the centroid's dot product with the
@@ -361,28 +313,6 @@ index (nothing is indexed). For each context:
 It runs at every context size and is plotted in `context_sweep_bm25_<view>.png`
 (`baseline.bm25_centroid.enabled: false` turns it off). It is expected to do worse than
 the E5 centroid:
-
-- **Vocabulary mismatch.** BM25 only credits exact (stemmed) terms. Grade-1 passages are
-  only related to the need, so their shared words describe the topic area; perfectly
-  relevant passages that word the answer differently get nothing, while E5 places
-  paraphrases close together.
-- **Averaging does not cancel.** Unit E5 vectors pointing different ways partly cancel,
-  keeping the shared semantic direction. Term weights are all non-negative, so the BM25
-  centroid is a weighted union of every passage's vocabulary, idiosyncrasies included, and
-  BM25 has no notion that two terms are related.
-- **Long-query topic drift.** A 100-term query adds up many independent matches, so long,
-  generic, topical documents rise and the few discriminative terms are diluted, the known
-  failure of Rocchio / pseudo-relevance feedback when the feedback documents are only
-  partly relevant (and worse with Experiment 2's noise).
-- **Frequency, not usefulness.** Weights come from how often a term occurs in the context;
-  common topical words dominate, BM25's idf only partly corrects this, and pruning can cut
-  the rare decisive terms.
-- **Learned versus hand-built geometry.** E5 is trained contrastively (including MS MARCO)
-  so related passages sit together; BM25's k1, b and saturation were designed for short
-  keyword queries, not 100-term weighted ones.
-
-On TREC-COVID, where BM25 is unusually strong (`true_query@bm25` beats E5's true query),
-the gap may be small or reversed.
 
 ### BM25 ablation without term weighting (`bm25_DaaQ_nobm25`, `bm25_centroid_nobm25`)
 
@@ -476,7 +406,7 @@ python scripts/plot_results.py --plots paper_row --paper-metric R@10 --column-wi
 | `--reference` | the upper-bound run behind the percentages |
 | `--oracle-lines` / `--no-oracle-lines` (`--no-reference`) | draw the Oracle reference lines or not (default: `ORACLE_LINES` in `src/pec/analysis/plots.py`, off) |
 | `--titles` / `--no-titles`, `--reference-label` | figure titles (default: off) and the reference's name in legends and axes (default: `Oracle`, with `context size m` on `exp01`'s x axis) |
-| `--oracle-values FILE`, `--no-pinned-oracle` | the pinned Oracle scores (default `configs/oracle_values.yaml`; see *Pinned Oracle values*), or the Oracle computed from the stored results |
+| `--oracle-values FILE`, `--no-pinned-oracle` | the pinned Oracle scores (default `configs/oracle_values.yaml`), or the Oracle computed from the stored results |
 | `--ylim-raw LO HI`, `--ylim-pct LO HI`, `--no-fixed-ylim` | the y range of every score / % of Oracle panel (default: `y_limits` of the runs file, 0–1 and 0–140), or automatic ranges |
 | `--fixed-oracle` / `--no-fixed-oracle`, `--oracle-size` | compare every context size with the Oracle at `--oracle-size` (5): flat Oracle lines (default: on for `exp01`), or each size with the Oracle at that size |
 | `--format png\|pdf\|svg`, `--root`, `--out` | output format and folders |
