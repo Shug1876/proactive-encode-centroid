@@ -27,13 +27,20 @@ ABLATION_SUFFIX = "_nobm25"  # BM25 without term-frequency / length weighting (k
 RETRIEVER_NAMES = {"bm25": "BM25", "monot5": "monoT5", "colbert": "ColBERT", "splade": "SPLADE"}
 ORACLE_LABEL = "Oracle"
 # How runs are named in figure legends (and titles) where that differs from the run name in
-# the tables and configs; "<run>@<retriever>" follows its run.
-DISPLAY_NAMES = {"static_icl": "fixed_llm"}
+# the tables and configs; "<run>@<retriever>" follows its run. Only the figures change: the
+# stored tables, configs and command-line options keep the run names on the left.
+DISPLAY_NAMES = {
+    "centroid": "E5_centroid",
+    "static_icl": "QF-Fixed",
+    "zero_shot": "QF-Zero",
+    "sliding_window": "QF-SW",
+    "doc2query": "QF-D2Q",
+}
 
 
 def display_name(name: str) -> str:
-    """A run's name in the figures: static_icl -> fixed_llm (static_icl@bm25 ->
-    fixed_llm@bm25); every other label unchanged."""
+    """A run's name in the figures (DISPLAY_NAMES): e.g. static_icl -> QF-Fixed,
+    doc2query@bm25 -> QF-D2Q@bm25; every other label unchanged."""
     name = str(name)
     base, sep, rest = name.partition("@")
     return DISPLAY_NAMES.get(base, base) + sep + rest

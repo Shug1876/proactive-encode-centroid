@@ -173,6 +173,27 @@ flat line and the curves show how each m compares with the same Oracle;
 at that m. Only the figures change: the tables' `<metric>_pct_true_query` columns, and
 best k, still compare with the E5 true query at the same m.
 
+**Figure settings** (every figure: the experiments' own and everything `plot_results.py`
+draws). They live at the top of `src/pec/analysis/plots.py`:
+
+| Setting | Default | Effect |
+|---|---|---|
+| `MARKER_SIZE` | 3.5 | size, in points, of the markers on every line |
+| `ORACLE_LINES` | `False` | draw the Oracle as reference lines (each retriever's raw-score Oracle line, and the 100% line of the "% of Oracle" panels). Off, the % panels are still % of the Oracle. `plot_results.py --oracle-lines` turns them on for one call |
+
+Legend names come from `DISPLAY_NAMES` in `src/pec/analysis/oracle.py`; only the figures
+change, while the tables, configs and command-line options keep the run names:
+
+| Run | In the figures |
+|---|---|
+| `centroid` | E5_centroid |
+| `zero_shot` | QF-Zero |
+| `static_icl` | QF-Fixed |
+| `sliding_window` | QF-SW |
+| `doc2query` | QF-D2Q |
+
+`<run>@<retriever>` follows its run (`doc2query@bm25` is QF-D2Q@bm25).
+
 **No titles.** Experiment 1's figures (and `exp01_comparison`) have no titles unless `exp01.plot_titles: true` (command line `--titles`), as Experiment 2's. Where a panel
 title named something, it moves: the context-sweep y axes read e.g. "nDCG@10 (% of
 Oracle)", and the overview's method families head each panel's legend. Panel titles
@@ -189,8 +210,8 @@ logged; remove a key, or set `y_limits: null`, for automatic ranges.
 configs and read by `plot_results.py`) pins the Oracle scores the figures use: nDCG@10 at
 m = 5 for the E5 Oracle (`true_query`) and the BM25 Oracle (`true_query@bm25`) on DL19 and
 DL20 (`grade=3`, `grade>=2`) and TREC-COVID (`grade=2`), keyed metric -> dataset -> Oracle
-run -> view. Wherever a value is given, every figure divides by it and draws the Oracle line
-at it, instead of the Oracle computed from the stored results; metrics, datasets or views
+run -> view. Wherever a value is given, every figure divides by it (and, with the Oracle
+lines on, draws the Oracle line at it), instead of the Oracle computed from the stored results; metrics, datasets or views
 not listed keep the computed Oracle (fixed at m = 5 as above), and a pinned value that
 matches no stored result is logged. Toggles: `exp01.baseline.pin_oracle`,
 `exp02.pin_oracle` (both default true) and `plot_results.py --no-pinned-oracle` (or another
@@ -402,13 +423,13 @@ relevant: α ∈ {0, 0.2, 0.4, 0.6, 0.8}, i.e. 0, 1, 2, 3 and 4 non-relevant doc
 Outputs in `outputs/exp02_<dataset>/`: `contexts.csv` (every context, with its α,
 non-relevant and partially relevant documents and their counts), `metrics_by_alpha.csv`,
 `metrics_perquery.csv`, `summary_by_alpha.csv`, `noise_sweep_<view>.png` (top row: each
-metric, with the E5 Oracle dashed and the BM25 Oracle dotted; bottom row: % of each run's
+metric (with the Oracle lines on, the E5 Oracle dashed and the BM25 Oracle dotted); bottom row: % of each run's
 own Oracle; x axis α from 0 to 0.8)
 and `summary.json`. With several datasets, `outputs/exp02_comparison/centroid_ndcg10_by_dataset.png`
 has the centroid's nDCG@10 share of the reference per dataset.
 
 **Figures.** The true-query reference is called **Oracle** in legends and axes
-(`exp02.reference_label`): "Oracle (E5)" and "Oracle (BM25)" for the two raw-score lines,
+(`exp02.reference_label`): "Oracle (E5)" and "Oracle (BM25)" for the two raw-score lines (when drawn),
 and the y axis of a share reads e.g. "nDCG@10 (% of Oracle (own retriever))" ("% of
 Oracle" with the centroid alone). The x axis reads "α (share of non-relevant documents),
 m = 5", and figures have no titles unless
@@ -452,19 +473,19 @@ python scripts/plot_results.py --plots paper_row --paper-metric R@10 --column-wi
 | `--variance std\|sem\|ci95\|minmax\|none` | the band over repeats (default ±1 std; `ci95` uses Student's t) |
 | `--show-repeats` | also draw every repeat as a thin line |
 | `--conditions`, `--include-all` | x values to keep (context sizes or α); plot the stored "all" size |
-| `--reference`, `--no-reference` | the upper-bound run behind the percentages and the dashed line |
+| `--reference` | the upper-bound run behind the percentages |
+| `--oracle-lines` / `--no-oracle-lines` (`--no-reference`) | draw the Oracle reference lines or not (default: `ORACLE_LINES` in `src/pec/analysis/plots.py`, off) |
 | `--titles` / `--no-titles`, `--reference-label` | figure titles (default: off) and the reference's name in legends and axes (default: `Oracle`, with `context size m` on `exp01`'s x axis) |
 | `--oracle-values FILE`, `--no-pinned-oracle` | the pinned Oracle scores (default `configs/oracle_values.yaml`; see *Pinned Oracle values*), or the Oracle computed from the stored results |
 | `--ylim-raw LO HI`, `--ylim-pct LO HI`, `--no-fixed-ylim` | the y range of every score / % of Oracle panel (default: `y_limits` of the runs file, 0–1 and 0–140), or automatic ranges |
 | `--fixed-oracle` / `--no-fixed-oracle`, `--oracle-size` | compare every context size with the Oracle at `--oracle-size` (5): flat Oracle lines (default: on for `exp01`), or each size with the Oracle at that size |
 | `--format png\|pdf\|svg`, `--root`, `--out` | output format and folders |
 
-Retired runs (`seed_fusion`) are never plotted, and `static_icl` is labelled `fixed_llm` in
-every figure. The % values are recomputed from the
-stored scores against each run's own retriever's Oracle (`true_query` for E5 runs,
-`true_query@bm25` for the BM25 runs, ...), on the same view, condition and repeat, or at
-the fixed Oracle size; the raw-score rows draw each retriever's Oracle (E5 dashed, BM25
-dotted).
+Retired runs (`seed_fusion`) are never plotted, and runs carry their figure names (see
+*Figure settings*). The % values are recomputed from the stored scores against each run's
+own retriever's Oracle (`true_query` for E5 runs, `true_query@bm25` for the BM25 runs,
+...), on the same view, condition and repeat, or at the fixed Oracle size. With the Oracle
+lines on, the raw-score rows draw each retriever's Oracle (E5 dashed, BM25 dotted).
 
 ## Tests
 
@@ -472,7 +493,7 @@ dotted).
 pytest
 ```
 
-The tests (72) run on a small synthetic corpus in an in-memory FAISS index, with fake BM25,
+The tests (73) run on a small synthetic corpus in an in-memory FAISS index, with fake BM25,
 LLM, doc2query and text retrievers, so they need no index, download or API key: the config,
 data, contexts and noise draws, the index store, every baseline pipeline, the
 stored-result cache, both experiments end to end (with figures, the Oracle toggles and

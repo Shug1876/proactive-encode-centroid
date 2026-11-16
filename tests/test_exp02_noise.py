@@ -203,8 +203,11 @@ def test_exp02_cli(monkeypatch):
 
 def test_exp02_figures_have_no_titles_and_name_the_oracle(toy, tmp_path, monkeypatch, fake_bm25):
     import matplotlib.figure
+    import pec.analysis.plots as plots
     import pec.experiments.exp02 as exp02
     from pec.experiments.exp01 import build_context
+
+    monkeypatch.setattr(plots, "ORACLE_LINES", True)  # the Oracle lines are off by default
 
     seen = []
     real_save = exp02.save
@@ -225,7 +228,7 @@ def test_exp02_figures_have_no_titles_and_name_the_oracle(toy, tmp_path, monkeyp
         t = texts(fig)
         assert t["suptitle"] == "" and set(t["titles"]) == {""}, name  # no titles by default
         assert t["xlabels"] == {"α (share of non-relevant documents), m = 5"}
-        assert {"centroid", "bm25_DaaQ", "bm25_centroid", "Oracle (E5)", "Oracle (BM25)"} <= t["legend"]
+        assert {"E5_centroid", "bm25_DaaQ", "bm25_centroid", "Oracle (E5)", "Oracle (BM25)"} <= t["legend"]
         assert "true_query" not in t["legend"] and not any("true_query" in y for y in t["ylabels"])
         assert "nDCG@10 (% of Oracle (own retriever))" in t["ylabels"]
     seen.clear()  # the centroid alone: one Oracle, plain "Oracle"
@@ -240,8 +243,11 @@ def test_exp02_figures_have_no_titles_and_name_the_oracle(toy, tmp_path, monkeyp
 
 
 def test_exp02_figures_use_the_pinned_oracle(toy, tmp_path, monkeypatch, fake_bm25):
+    import pec.analysis.plots as plots
     import pec.experiments.exp02 as exp02
     from pec.experiments.exp01 import build_context
+
+    monkeypatch.setattr(plots, "ORACLE_LINES", True)
 
     seen = []
     real_save = exp02.save
@@ -259,7 +265,7 @@ def test_exp02_figures_use_the_pinned_oracle(toy, tmp_path, monkeypatch, fake_bm
     assert flat == pytest.approx([0.311247214969467, 0.387636275214749])  # dl19's pinned BM25 and E5 Oracles, grade=3
     m = pd.read_csv(tmp_path / "pinned/metrics_by_alpha.csv", dtype={"alpha": str})
     c0 = m[(m["name"] == "centroid") & (m["view"] == "grade=3") & (m["alpha"] == "0.0")]["nDCG@10"].mean()
-    centroid = next(l for l in pct_ndcg.get_lines() if l.get_label() == "centroid")
+    centroid = next(l for l in pct_ndcg.get_lines() if l.get_label() == "E5_centroid")
     assert centroid.get_ydata()[0] == pytest.approx(100 * c0 / 0.387636275214749)
     # the tables keep the computed Oracle
     j = m[m["name"] == "centroid"].merge(m[m["name"] == "true_query"], on=["view", "alpha", "repeat"], suffixes=("", "_o"))

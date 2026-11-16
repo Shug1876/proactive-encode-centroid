@@ -34,7 +34,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pec.analysis.plots import MUTED, SERIES, apply_style, save, set_ylim, y_limits
+from pec.analysis.plots import MUTED, SERIES, apply_style, oracle_lines_shown, save, set_ylim, y_limits
 from pec.data.qrels import view_tag
 from pec.experiments.exp01 import DatasetContext, _json_default, load_context
 
@@ -155,7 +155,7 @@ def plot_noise_sweep(summary: pd.DataFrame, metric_cols, alphas, out_prefix: Pat
                     ax.fill_between(x, y - std, y + std, color=SERIES[i], alpha=0.15, linewidth=0)
                     ax.plot(x, y, color=SERIES[i], marker="o", label=display_name(name))
                 if row == 0:
-                    for o, dash in zip(oracles, ("--", ":", "-.")):
+                    for o, dash in zip(oracles if oracle_lines_shown() else [], ("--", ":", "-.")):
                         line_label = oracle_line_label(o, len(oracles) > 1, reference, reference_label)
                         pin = pinned_value(pinned, m, o, view)
                         if pin is not None:  # the pinned Oracle: one flat line
@@ -164,7 +164,7 @@ def plot_noise_sweep(summary: pd.DataFrame, metric_cols, alphas, out_prefix: Pat
                         r = sv[sv["name"] == o].sort_values(BY, key=lambda c: c.map(pos))
                         ax.plot(r[BY].map(pos).to_numpy(dtype=float), r[f"{m}_mean"].to_numpy(), color=MUTED,
                                 linewidth=1.2, linestyle=dash, label=line_label)
-                else:
+                elif oracle_lines_shown():
                     ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=pct_label)
                 ax.set_xticks(range(len(alphas)), alphas)
                 ax.set_xlabel(alpha_xlabel(size))
@@ -316,7 +316,8 @@ def write_comparison(cfg: dict, datasets: list[str], out: Path) -> pd.DataFrame 
         y, std = s["nDCG@10_pct_true_query_mean"].to_numpy(), s["nDCG@10_pct_true_query_std"].fillna(0).to_numpy()
         ax.fill_between(x, y - std, y + std, color=SERIES[i], alpha=0.15, linewidth=0)
         ax.plot(x, y, color=SERIES[i], marker="o", label=f"{ds} ({relevance(cfg, ds).target_view})")
-    ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
+    if oracle_lines_shown():
+        ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
     ax.set_xticks(range(len(alphas)), alphas)
     ax.set_xlabel(alpha_xlabel(int(ec["context_size"])))
     ax.set_ylabel(pct_ylabel("nDCG@10", label))

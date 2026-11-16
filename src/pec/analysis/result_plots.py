@@ -34,7 +34,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pec.analysis.plots import MUTED, SERIES, SERIES8, apply_style, save, series_style, set_ylim, y_limits
+from pec.analysis.plots import (MARKER_SIZE, MUTED, SERIES, SERIES8, apply_style, oracle_lines_shown, save, series_style,
+                                set_ylim, y_limits)
 from pec.analysis.oracle import display_name, oracle_label, oracle_of, pinned_value, warn_unused_pins
 from pec.data.qrels import view_tag
 from pec.data.seeds import ALL, ordered_sizes
@@ -241,7 +242,7 @@ def _draw(ax, draws_one, col, order, how, colour, label, show_repeats, xcol, mar
         for _, r in d.groupby("repeat"):
             r = r.assign(_x=r[xcol].map(pos)).sort_values("_x")
             ax.plot(r["_x"], r[col], color=colour, linewidth=0.7, alpha=0.45)
-    ax.plot(xs, stats[f"{col}_mean"], color=colour, marker=marker, markersize=4, label=display_name(label))
+    ax.plot(xs, stats[f"{col}_mean"], color=colour, marker=marker, markersize=MARKER_SIZE, label=display_name(label))
     return stats
 
 
@@ -264,7 +265,7 @@ class Options:
     variance: str = "std"
     show_repeats: bool = False
     reference: str = "true_query"
-    show_reference: bool = True
+    show_reference: bool | None = None   # Oracle reference lines; None: ORACLE_LINES (analysis/plots.py)
     conditions: list | None = None       # context sizes / α to keep
     include_all: bool = False
     fmt: str = "png"
@@ -274,6 +275,10 @@ class Options:
     fixed_oracle: bool | None = None     # None: Oracle fixed at oracle_size for exp01 (FIXED_ORACLE)
     oracle_size: str = "5"
     pinned: dict | None = None           # oracle_values: metric -> dataset -> Oracle run -> view -> score
+
+    def __post_init__(self):
+        if self.show_reference is None:
+            self.show_reference = oracle_lines_shown()
 
     def pins(self, dataset: str) -> dict | None:
         """The pinned Oracle scores of one dataset ({metric: {oracle: {view: value}}}), or None."""
@@ -570,7 +575,7 @@ def plot_paper_row(sources: list[Source], draws: dict, names: list[str], row: Pa
     col = _value_col(row.metric, row.value, opt.reference)
     fs = row.font_size
     style = {"font.size": fs, "axes.labelsize": fs, "xtick.labelsize": fs - 1, "ytick.labelsize": fs - 1,
-             "legend.fontsize": fs - 1, "lines.linewidth": 1.2, "lines.markersize": 3, "pdf.fonttype": 42,
+             "legend.fontsize": fs - 1, "lines.linewidth": 1.2, "lines.markersize": MARKER_SIZE, "pdf.fonttype": 42,
              "ps.fonttype": 42, "xtick.major.size": 2, "ytick.major.size": 2, "xtick.major.pad": 2,
              "ytick.major.pad": 2, "axes.labelpad": 2}
     written, figs, handles = [], [], {}
