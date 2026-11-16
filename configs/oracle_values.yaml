@@ -1,0 +1,18 @@
+# Pinned Oracle (true query) scores: nDCG@10 at context size m = 5, the mean over the 5
+# repeats of Experiment 1. Wherever a value is given here (metric -> dataset -> Oracle run
+# -> view), the figures of Experiments 1 and 2 and scripts/plot_results.py divide by it
+# and draw the Oracle line at it, instead of the Oracle computed from the stored results
+# (toggles: exp01.baseline.pin_oracle, exp02.pin_oracle, plot_results.py --no-pinned-oracle).
+# Metrics, datasets or views not listed keep the computed Oracle. Views must match the
+# tables exactly: TREC DL "grade=3" and "grade>=2" (grades 2 and 3), TREC-COVID "grade=2".
+oracle_values:
+  nDCG@10:
+    dl19:
+      true_query:      {"grade=3": 0.387636275214749, "grade>=2": 0.564881919896184}   # E5
+      true_query@bm25: {"grade=3": 0.311247214969467, "grade>=2": 0.445497729070543}   # BM25
+    dl20:
+      true_query:      {"grade=3": 0.543435501826611, "grade>=2": 0.631565385217391}
+      true_query@bm25: {"grade=3": 0.351736616005399, "grade>=2": 0.411733656554722}
+    trec_covid:
+      true_query:      {"grade=2": 0.529703985952111}
+      true_query@bm25: {"grade=2": 0.550955655824402}

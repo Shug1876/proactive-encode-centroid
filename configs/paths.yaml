@@ -1,0 +1,77 @@
+# Index and data locations. Point every path below at your own copies before running
+# anything real (a "/path/to/..." value is treated as an unset placeholder).
+# Nothing in this repository builds an index: the FAISS files below must already exist,
+# built with the E5 model named here (documents encoded with the "passage: " prefix,
+# L2-normalised, so inner product == cosine similarity).
+
+e5_model: intfloat/e5-base-v2
+
+indexes:
+  # MS MARCO v1 passage (8.8M) -- the corpus TREC-DL19 is judged on.
+  msmarco_v1:
+    faiss: /mnt/indices/msmarco-passage.faiss.e5.flex/ivf_nlist-4096_train-159744.faiss
+    # Row i of the FAISS index <-> docno i. Either a text file (one docno per line)
+    # or an npids file (as written by pyterrier-dr's FlexIndex).
+    docnos: /mnt/indices/msmarco-passage.faiss.e5.flex/docnos.npids
+    search_params: {nprobe: 64, efSearch: 256}   # ignored when the index has no such parameter
+  # TREC-COVID (BEIR's CORD-19 subset, 171k title+abstract documents) -- its own index,
+  # separate from the MS MARCO one DL19/DL20 share. Encode documents as "title abstract"
+  # (see README); a flat index is fine at this size.
+  trec_covid:
+    faiss: /mnt/indices/trec-covid.faiss.e5.flex/ivf_nlist-512_train-19968.faiss
+    docnos: /mnt/indices/trec-covid.faiss.e5.flex/docnos.npids
+
+# Text retrievers of proactive-icl-query-pair (its src/data.py, get_retr), for the query
+# formulation baselines of Experiment 1, keyed like `indexes` (DL19 and DL20 share
+# msmarco_v1). These are that repository's index locations. bm25 also serves monot5
+# (BM25 top 50 re-ranked by monoT5; passage text from the dataset's `corpus`). bm25 and
+# splade are PISA indexes ("hf:<repo>" loads a HuggingFace artifact); colbert is
+# TCT-ColBERT (castorini/tct_colbert-v2-hnp-msmarco) over a FlexIndex (`flex`) or a
+# NumpyIndex (`numpy`); splade uses naver/splade-cocondenser-ensembledistil over an index
+# built without stemming.
+text_retrievers:
+  msmarco_v1:
+    bm25: /mnt/indices/msmarco-passage.pisa
+    colbert: {flex: /mnt/indices/msmarco-passage.tct-hnp.flex}
+    splade: /mnt/indices/msmarco-passage.splade-ensemble-distill.pisa
+  trec_covid:
+    # proactive-icl-query-pair loads the HuggingFace artifact, not its local copy at
+    # /mnt/indices/BEIR/trec_covid/trec-covid.pisa
+    bm25: hf:pyterrier/trec-covid.pisa
+    colbert: {numpy: /mnt/indices/BEIR/trec_covid/trec-covid.tct-hnp.np}
+    splade: /mnt/indices/BEIR/trec_covid/trec-covid.splade-ensemble-distill.pisa
+
+# Each dataset's relevance scheme: the grade used as the context, the target grade to
+# discover, and the evaluation views (grades that count as relevant in each view; every
+# other grade scores 0).
+dl_relevance: &dl_relevance
+  context: 1
+  target: 3
+  views: {"grade>=2": [2, 3], "grade=3": [3]}
+  names: {0: non-relevant, 1: partially relevant, 2: highly relevant, 3: perfectly relevant}
+
+datasets:
+  dl19:
+    # Loaded through PyTerrier's ir_datasets integration.
+    irds: irds:msmarco-passage/trec-dl-2019/judged
+    corpus: irds:msmarco-passage
+    index: msmarco_v1
+    relevance: *dl_relevance
+  dl20:
+    irds: irds:msmarco-passage/trec-dl-2020/judged
+    corpus: irds:msmarco-passage
+    index: msmarco_v1
+    relevance: *dl_relevance
+  trec_covid:
+    irds: irds:beir/trec-covid
+    topics_variant: text            # the natural-language question (also: query, narrative)
+    corpus: irds:beir/trec-covid
+    text_fields: [title, text]      # title + abstract
+    index: trec_covid
+    relevance:                      # no grade 3 in TREC-COVID: grade 2 is the target
+      context: 1
+      target: 2
+      views: {"grade=2": [2]}
+      names: {0: not relevant, 1: partially relevant, 2: relevant}
+
+output_dir: outputs
