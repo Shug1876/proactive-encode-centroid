@@ -29,7 +29,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pec.analysis.plots import SERIES, apply_style, lines, save
+from pec.analysis.plots import SERIES, apply_style, lines, oracle_lines_shown, save
 from pec.analysis.oracle import ABLATION_SUFFIX, pinned_value, pinned_values, warn_unused_pins
 from pec.data.qrels import DL_RELEVANCE, GRADES, Relevance, grade_sets
 
@@ -542,7 +542,8 @@ def write_comparison(cfg: dict, datasets: list[str], out: Path) -> pd.DataFrame 
         xs[label], ys[label] = x, y
     style = figure_style(ec["baseline"])
     lines(ax, xs, ys, log2_x=False, xlabel=style.xlabel(), ylabel=f"% of {style.label}", ykind="pct")
-    ax.axhline(100, color="#898781", linewidth=1, linestyle="--", label=style.label)
+    if oracle_lines_shown():
+        ax.axhline(100, color="#898781", linewidth=1, linestyle="--", label=style.label)
     ax.legend(fontsize=7)
     ax.set_xticks(range(len(sizes)), sizes)
     ax.set_title(f"Centroid nDCG@10 on each dataset's target documents{style.note()}")

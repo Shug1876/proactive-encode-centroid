@@ -15,6 +15,15 @@ from pec.analysis.result_plots import (Options, describe, find_sources, model_gr
 DL_VIEWS, COVID_VIEWS = ["grade>=2", "grade=3"], ["grade=2"]
 
 
+@pytest.fixture(autouse=True)
+def oracle_lines_on(monkeypatch):
+    """These tests check the Oracle lines too, which are off by default (ORACLE_LINES);
+    test_defaults_no_oracle_lines_new_names_and_marker_size checks the defaults."""
+    import pec.analysis.plots as plots
+
+    monkeypatch.setattr(plots, "ORACLE_LINES", True)
+
+
 def table(names, views, conditions, col, repeats=5, seed=0, extra=None):
     rng = np.random.default_rng(seed)
     rows = []
@@ -451,7 +460,7 @@ def test_paper_row_three_one_column_pdfs_and_a_legend(stored, tmp_path, monkeypa
         assert ax.get_xlabel() == "context size m" and [t.get_text() for t in ax.get_xticklabels()] == ["1", "3", "5"]
         assert ax.get_legend() is None and ax.get_title() == ""
     legend = saved["exp01_legend.pdf"].legends[0]
-    assert [t.get_text() for t in legend.get_texts()] == ["centroid", "seed_rrf", "zero_shot", "Oracle"]
+    assert [t.get_text() for t in legend.get_texts()] == ["E5_centroid", "seed_rrf", "QF-Zero", "Oracle"]
     assert saved["exp01_legend.pdf"].get_size_inches()[0] == pytest.approx(3.33)
     text = (out / "paper/exp01_widths.txt").read_text()
     assert text.splitlines() == ["dl19: 0.428\\columnwidth", "dl20: 0.281\\columnwidth",
@@ -539,13 +548,15 @@ def test_paper_row_default_exp01_and_exp02_raw_with_both_oracles(stored, tmp_pat
     assert PaperRow.from_config({"experiment": "exp02"}).experiments == ("exp02",)
 
 
-def test_static_icl_is_called_fixed_llm_in_the_figures(stored, tmp_path, monkeypatch):
+def test_runs_get_their_figure_names(stored, tmp_path, monkeypatch):
     import matplotlib.figure
 
     from pec.analysis.oracle import display_name
 
-    assert display_name("static_icl") == "fixed_llm" and display_name("static_icl@bm25") == "fixed_llm@bm25"
-    assert display_name("centroid") == "centroid" and display_name("dl19 (grade=3)") == "dl19 (grade=3)"
+    assert [display_name(n) for n in ("centroid", "static_icl", "zero_shot", "sliding_window", "doc2query")] == \
+        ["E5_centroid", "QF-Fixed", "QF-Zero", "QF-SW", "QF-D2Q"]
+    assert display_name("doc2query@bm25") == "QF-D2Q@bm25" and display_name("bm25_centroid") == "bm25_centroid"
+    assert display_name("seed_rrf") == "seed_rrf" and display_name("dl19 (grade=3)") == "dl19 (grade=3)"
     d = stored / "exp01_dl19/baseline/metrics_by_context_size.csv"
     t = pd.read_csv(d, dtype={"context_size": str})
     pd.concat([t, t[t["name"] == "zero_shot"].assign(name="static_icl")]).to_csv(d, index=False)
@@ -554,7 +565,46 @@ def test_static_icl_is_called_fixed_llm_in_the_figures(stored, tmp_path, monkeyp
     monkeypatch.setattr(matplotlib.figure.Figure, "savefig",
                         lambda fig, path, *a, **kw: (figs.append(fig), real(fig, path, *a, **kw))[1])
     w = plot_results(stored, tmp_path / "p", experiments=["exp01"], datasets=["dl19"], plots=["sweep"],
-                     models=["centroid", "static_icl"], opt=Options(views=["eq3"]))
+                     models=["centroid", "static_icl", "zero_shot"], opt=Options(views=["eq3"]))
     legend = {t.get_text() for f in figs for ax in f.axes if ax.get_legend() for t in ax.get_legend().get_texts()}
-    assert "fixed_llm" in legend and "static_icl" not in legend
-    assert "static_icl" in set(pd.read_csv(w[0].with_suffix(".csv"))["name"])  # the tables keep the run name
+    assert {"E5_centroid", "QF-Fixed", "QF-Zero"} <= legend
+    assert not {"centroid", "static_icl", "fixed_llm", "zero_shot"} & legend
+    # the tables keep the run names
+    assert {"centroid", "static_icl", "zero_shot"} <= set(pd.read_csv(w[0].with_suffix(".csv"))["name"])
+
+
+def test_defaults_no_oracle_lines_new_names_and_marker_size(stored, tmp_path, monkeypatch):
+    import matplotlib.figure
+
+    import pec.analysis.plots as plots
+
+    monkeypatch.undo()  # ORACLE_LINES back to its default (oracle_lines_on switched it on)
+    assert plots.ORACLE_LINES is False and plots.MARKER_SIZE == 3.5
+    figs = []
+    real = matplotlib.figure.Figure.savefig
+    monkeypatch.setattr(matplotlib.figure.Figure, "savefig",
+                        lambda fig, path, *a, **kw: (figs.append(fig), real(fig, path, *a, **kw))[1])
+    w = plot_results(stored, tmp_path / "p", experiments=["exp01", "exp02"], plots=["sweep", "datasets"],
+                     models=["centroid", "bm25_DaaQ"])
+    assert w and len(figs) == len(w)
+    for fig in figs:
+        for ax in fig.axes:
+            labels = [l.get_label() for l in ax.get_lines()]
+            assert not any(str(x).startswith("Oracle") for x in labels)  # no Oracle line, no 100% line
+            assert not any(set(l.get_ydata()) == {100} for l in ax.get_lines())
+            for l in ax.get_lines():
+                if l.get_marker() not in (None, "None", ""):
+                    assert l.get_markersize() == 3.5
+    sweep = next(p for p in w if p.name == "sweep_selected_eq3.png" and p.parent.name == "exp01_dl19")
+    stats = pd.read_csv(sweep.with_suffix(".csv"))
+    assert not stats["name"].str.startswith("true_query").any()  # no Oracle rows in the figure's CSV
+    assert (stats.filter(like="pct_true_query_mean").dropna(how="all") > 0).any().any()  # % still of the Oracle
+    # --oracle-lines brings them back
+    import pec.analysis.result_plots as rp
+
+    seen = {}
+    monkeypatch.setattr(rp, "plot_results", lambda *a, **kw: seen.update(opt=a[8]) or [])
+    for argv, expected in (([], False), (["--oracle-lines"], True), (["--no-reference"], False)):
+        monkeypatch.setattr(sys, "argv", ["plot_results.py", "--root", str(stored), *argv])
+        runpy.run_path("scripts/plot_results.py", run_name="__main__")
+        assert seen["opt"].show_reference is expected, argv

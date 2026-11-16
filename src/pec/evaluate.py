@@ -286,7 +286,7 @@ def plot_context_sweep(summary: pd.DataFrame, metric_cols, names, out_prefix: Pa
     import matplotlib.pyplot as plt
 
     from pec.analysis.oracle import display_name, oracle_label, oracle_of
-    from pec.analysis.plots import MUTED, SERIES8, apply_style, lines, save, series_style, titles_shown
+    from pec.analysis.plots import MUTED, SERIES8, apply_style, lines, oracle_lines_shown, save, series_style, titles_shown
 
     apply_style()
     summary = summary[~summary["context_size"].isin(exclude_sizes)]
@@ -315,7 +315,8 @@ def plot_context_sweep(summary: pd.DataFrame, metric_cols, names, out_prefix: Pa
             # without titles the y axis names the metric too
             ylabel = f"% of {label}" if titles_shown() else f"{m} (% of {label})"
             lines(ax, xs, ys, log2_x=False, xlabel=style.xlabel(), ylabel=ylabel, ykind="pct")
-            ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
+            if oracle_lines_shown():
+                ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
             ax.legend(fontsize=6 if len(names) > 4 else 7, loc="best")
             ax.set_xticks(range(len(sizes)), sizes)
             ax.set_title(m)
@@ -393,7 +394,8 @@ def plot_overview(summary: pd.DataFrame, metric_cols, groups: dict[str, list[str
     import matplotlib.pyplot as plt
 
     from pec.analysis.oracle import display_name, oracle_label, oracle_of
-    from pec.analysis.plots import MUTED, SERIES8, apply_style, save, series_style, set_ylim, titles_shown
+    from pec.analysis.plots import (MARKER_SIZE, MUTED, SERIES8, apply_style, oracle_lines_shown, save, series_style,
+                                    set_ylim, titles_shown)
 
     apply_style()
     summary = summary[~summary["context_size"].isin(exclude_sizes)]
@@ -426,13 +428,14 @@ def plot_overview(summary: pd.DataFrame, metric_cols, groups: dict[str, list[str
             for ax, (group, runs) in zip(axes.ravel(), panels):
                 if "centroid" in present:
                     x, y = series(sv, "centroid", col)
-                    ax.plot(x, y, color=MUTED, linewidth=1.2, label="centroid")
+                    ax.plot(x, y, color=MUTED, linewidth=1.2, label=display_name("centroid"))
                 for i, name, n in runs:
                     x, y = series(sv, name, col)
                     colour, marker = series_style(i, n)
-                    ax.plot(x, y, color=colour, marker=marker, markersize=4, label=display_name(name))
+                    ax.plot(x, y, color=colour, marker=marker, markersize=MARKER_SIZE, label=display_name(name))
                 label = oracle_label({oracle_of(n, reference) for _, n, _ in runs}, reference, style.label)
-                ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
+                if oracle_lines_shown():
+                    ax.axhline(100, color=MUTED, linewidth=1, linestyle="--", label=label)
                 ax.set_xticks(range(len(sizes)), sizes)
                 ax.set_xlabel(style.xlabel())
                 set_ylim(ax, "pct")

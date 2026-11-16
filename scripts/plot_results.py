@@ -156,7 +156,10 @@ def main() -> None:
                         help="x values to keep: context sizes (1 3 5) or α (0 0.4 0.8)")
     parser.add_argument("--include-all", action="store_true", help='plot the "all" context size if stored')
     parser.add_argument("--reference", default="true_query", help="the upper-bound run (percentages and dashed line)")
-    parser.add_argument("--no-reference", action="store_true", help="do not draw the reference line")
+    parser.add_argument("--oracle-lines", action=argparse.BooleanOptionalAction, default=None,
+                        help="draw the Oracle reference lines (raw-score Oracle lines, 100%% line of the %% panels); "
+                             "default: ORACLE_LINES in src/pec/analysis/plots.py (off)")
+    parser.add_argument("--no-reference", action="store_true", help="same as --no-oracle-lines")
     parser.add_argument("--titles", action=argparse.BooleanOptionalAction, default=None,
                         help="figure titles on / off (default: on, except for exp01 and exp02)")
     parser.add_argument("--ylim-raw", nargs=2, type=float, metavar=("LO", "HI"),
@@ -194,7 +197,7 @@ def main() -> None:
 
         cfg = load_config(args.config)
     opt = Options(metrics=args.metrics, values=tuple(args.values), views=args.views, variance=args.variance,
-                  show_repeats=args.show_repeats, reference=args.reference, show_reference=not args.no_reference,
+                  show_repeats=args.show_repeats, reference=args.reference, show_reference=False if args.no_reference else args.oracle_lines,
                   conditions=args.conditions, include_all=args.include_all, fmt=args.format,
                   titles=args.titles, reference_label=args.reference_label, fixed_oracle=args.fixed_oracle,
                   oracle_size=args.oracle_size, pinned=_pinned(args), y_limits=_y_limits(args))

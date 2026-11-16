@@ -98,6 +98,7 @@ def test_exp01_figures_oracle_m_six_e5_lines_and_bm25_ablation(toy, tmp_path, mo
     figs = {}
     real = plots.save
     monkeypatch.setattr(plots, "save", lambda fig, path, **kw: (figs.__setitem__(path.name, fig), real(fig, path, **kw)))
+    monkeypatch.setattr(plots, "ORACLE_LINES", True)  # the Oracle lines are off by default
 
     ctx = exp01.build_context(store, toy["topics"].astype({"qid": str}), qrels, None, texts, index_key="toy")
     from test_datasets_mmr import query_vectors
@@ -116,7 +117,7 @@ def test_exp01_figures_oracle_m_six_e5_lines_and_bm25_ablation(toy, tmp_path, mo
     assert ("centroid", 0.0) in k1s and ("rrf", 0.0) in k1s and ("centroid", None) in k1s  # k1 = 0 for the ablations
     main, bm25 = figs["context_sweep_eq3.png"], figs["context_sweep_bm25_eq3.png"]
     legend = lambda fig: {t.get_text() for ax in fig.axes if ax.get_legend() for t in ax.get_legend().get_texts()}
-    assert {"centroid", "seed_rrf", "Oracle"} <= legend(main) and "true_query" not in legend(main)
+    assert {"E5_centroid", "seed_rrf", "Oracle"} <= legend(main) and "true_query" not in legend(main)
     assert {ax.get_xlabel() for ax in main.axes} == {"context size m"}
     # no titles by default (exp01.plot_titles: false): the y axis names the metric instead
     assert {ax.get_ylabel() for ax in main.axes} == {"nDCG@10 (% of Oracle)", "R@10 (% of Oracle)", "R@40 (% of Oracle)"}
@@ -128,7 +129,7 @@ def test_exp01_figures_oracle_m_six_e5_lines_and_bm25_ablation(toy, tmp_path, mo
     headings = {ax.get_legend().get_title().get_text() for ax in overview.axes if ax.get_legend()}
     assert {"E5 methods", "BM25 methods"} <= headings  # the method family heads the legend instead
     # the nDCG@10 panel divides by the pinned E5 Oracle (0.3876... for dl19, grade=3)
-    centroid = next(l for l in main.axes[0].get_lines() if l.get_label() == "centroid")
+    centroid = next(l for l in main.axes[0].get_lines() if l.get_label() == "E5_centroid")
     at5 = m[(m["name"] == "centroid") & (m["view"] == "grade=3") & (m["context_size"] == "5")]["nDCG@10"].mean()
     assert centroid.get_ydata()[-1] == pytest.approx(100 * at5 / 0.387636275214749)
 
@@ -158,7 +159,7 @@ def test_six_e5_lines_in_one_figure(tmp_path, monkeypatch):
     plot_context_sweep(figure_summary(pd.DataFrame(rows), ["nDCG@10"], style=style), ["nDCG@10"], six,
                        tmp_path / "s", style=style)
     ax = figs[0].axes[0]
-    shown = [n.replace("static_icl", "fixed_llm") for n in six]  # static_icl is fixed_llm in the figures
+    shown = ["E5_centroid", "seed_rrf", "QF-Zero", "QF-Fixed", "QF-SW", "QF-D2Q"]  # the figures' names
     drawn = [l for l in ax.get_lines() if l.get_label() in shown]
     assert [l.get_label() for l in drawn] == shown
     assert len({l.get_color() for l in drawn}) == 6 and len({l.get_marker() for l in drawn}) == 6

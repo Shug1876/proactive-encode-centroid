@@ -29,6 +29,15 @@ SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]  # blue, orange, aqua, yel
 SERIES8 = SERIES + ["#e87ba4", "#008300", "#6250d6", "#e34948"]  # + magenta, green, violet, red
 MARKERS8 = ["o", "s", "^", "D", "v", "P", "X", "*"]
 
+# --- Settings shared by every result figure (the experiments' own figures and everything
+# scripts/plot_results.py draws, paper_row included). Change them here.
+# Size, in points, of the markers on every line.
+MARKER_SIZE = 3.5
+# Draw the Oracle (true query) as reference lines: each retriever's raw-score Oracle line
+# and the 100% line of the "% of Oracle" panels. The % values are still computed against
+# the Oracle either way. plot_results.py --oracle-lines / --no-oracle-lines overrides it.
+ORACLE_LINES = False
+
 
 def apply_style() -> None:
     plt.rcParams.update({
@@ -38,7 +47,7 @@ def apply_style() -> None:
         "axes.titlecolor": INK, "axes.spines.top": False, "axes.spines.right": False,
         "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.6,
         "xtick.color": MUTED, "ytick.color": MUTED, "legend.frameon": False,
-        "lines.linewidth": 2.0, "lines.markersize": 6,
+        "lines.linewidth": 2.0, "lines.markersize": MARKER_SIZE,
     })
 
 
@@ -55,6 +64,11 @@ def figure_titles(enabled: bool):
         yield
     finally:
         _SHOW_TITLES.pop()
+
+
+def oracle_lines_shown() -> bool:
+    """Whether figures draw the Oracle reference lines (ORACLE_LINES)."""
+    return ORACLE_LINES
 
 
 def titles_shown() -> bool:
